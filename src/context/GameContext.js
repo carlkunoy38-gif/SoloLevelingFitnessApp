@@ -90,7 +90,7 @@ export function GameProvider({ children }) {
         dispatch({ type: 'LOAD_STATE', payload: JSON.parse(saved) });
       }
     } catch (e) {
-      console.error('Failed to load state', e);
+      console.error('Failed to load state from AsyncStorage:', e);
     }
   }
 
@@ -99,7 +99,7 @@ export function GameProvider({ children }) {
       const { showLevelUp, levelUpData, ...toSave } = s;
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch (e) {
-      console.error('Failed to save state', e);
+      console.error('Failed to save state to AsyncStorage:', e);
     }
   }
 

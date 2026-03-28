@@ -27,7 +27,7 @@ export const RANKS = [
   { minLevel: 20, maxLevel: 29, rank: 'C',  label: 'C-Class Hunter',  color: '#00ff88' },
   { minLevel: 30, maxLevel: 39, rank: 'B',  label: 'B-Class Hunter',  color: '#7b2fff' },
   { minLevel: 40, maxLevel: 49, rank: 'A',  label: 'A-Class Hunter',  color: '#ff8800' },
-  { minLevel: 50, maxLevel: 99, rank: 'S',  label: 'S-Class Hunter',  color: '#ffaa00' },
+  { minLevel: 50, maxLevel: Infinity, rank: 'S',  label: 'S-Class Hunter',  color: '#ffaa00' },
 ];
 
 export function getXpForLevel(level) {

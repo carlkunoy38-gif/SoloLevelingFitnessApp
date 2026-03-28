@@ -12,7 +12,15 @@ import { useGame } from '../context/GameContext';
 import XPBar from '../components/XPBar';
 import LevelUpModal from '../components/LevelUpModal';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../constants/theme';
-import { getRankForLevel, getXpForLevel } from '../constants/gameConfig';
+import { getRankForLevel, getXpForLevel, RANKS } from '../constants/gameConfig';
+
+function formatLevelRange(minLevel, maxLevel) {
+  return maxLevel === Infinity ? `${minLevel}+` : `${minLevel}–${maxLevel}`;
+}
+
+function isCurrentRank(level, minLevel, maxLevel) {
+  return level >= minLevel && level <= maxLevel;
+}
 
 export default function HomeScreen() {
   const { state, dismissLevelUp } = useGame();
@@ -89,24 +97,16 @@ export default function HomeScreen() {
         {/* Ranks Guide */}
         <Text style={styles.sectionTitle}>[ HUNTER RANKS ]</Text>
         <View style={styles.ranksCard}>
-          {[
-            { rank: 'E', levels: '1-9',   color: '#888888' },
-            { rank: 'D', levels: '10-19',  color: '#00d4ff' },
-            { rank: 'C', levels: '20-29',  color: '#00ff88' },
-            { rank: 'B', levels: '30-39',  color: '#7b2fff' },
-            { rank: 'A', levels: '40-49',  color: '#ff8800' },
-            { rank: 'S', levels: '50+',    color: '#ffaa00' },
-          ].map((r) => (
+          {RANKS.map((r) => (
             <View key={r.rank} style={styles.rankRow}>
               <View style={[styles.rankDot, { backgroundColor: r.color }]} />
               <Text style={[styles.rankRowRank, { color: r.color }]}>{r.rank}-Class</Text>
-              <Text style={styles.rankRowLevels}>Level {r.levels}</Text>
-              {level >= parseInt(r.levels.split('-')[0]) &&
-                level <= (r.levels.includes('+') ? 999 : parseInt(r.levels.split('-')[1])) && (
-                  <View style={[styles.currentBadge, { backgroundColor: r.color + '33', borderColor: r.color }]}>
-                    <Text style={[styles.currentBadgeText, { color: r.color }]}>CURRENT</Text>
-                  </View>
-                )}
+              <Text style={styles.rankRowLevels}>Level {formatLevelRange(r.minLevel, r.maxLevel)}</Text>
+              {isCurrentRank(level, r.minLevel, r.maxLevel) && (
+                <View style={[styles.currentBadge, { backgroundColor: r.color + '33', borderColor: r.color }]}>
+                  <Text style={[styles.currentBadgeText, { color: r.color }]}>CURRENT</Text>
+                </View>
+              )}
             </View>
           ))}
         </View>
