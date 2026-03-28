@@ -22,7 +22,7 @@ export default function AddQuestModal({ visible, onClose, onAdd }) {
   const handleAdd = () => {
     if (!title.trim()) return;
     const quest = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
       title: title.trim(),
       description: description.trim(),
       difficulty,
