@@ -3,6 +3,7 @@
 import { IncomeData, BudgetData, InvestmentProfile } from '@/types';
 
 const STORAGE_KEY = 'dk-finance-data';
+const ONBOARDING_KEY = 'dk-finance-onboarded';
 
 export interface AppState {
   income: Partial<IncomeData>;
@@ -12,7 +13,7 @@ export interface AppState {
   profileId: string | null;
 }
 
-const DEFAULT_STATE: AppState = {
+export const DEFAULT_STATE: AppState = {
   income: {
     bruttoIndkomst: 0,
     indkomstType: 'løn',
@@ -70,4 +71,15 @@ export function saveState(state: AppState): void {
 export function clearState(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(ONBOARDING_KEY);
+}
+
+export function hasCompletedOnboarding(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(ONBOARDING_KEY) === 'true';
+}
+
+export function markOnboardingComplete(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(ONBOARDING_KEY, 'true');
 }
