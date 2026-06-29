@@ -5,14 +5,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert } from '@/components/ui/alert';
 import { formatKr, formatPct } from '@/lib/utils';
-import {
-  DollarSign,
-  Wallet,
-  PiggyBank,
-  TrendingDown,
-  ArrowRight,
-  Download,
-} from 'lucide-react';
+import { DollarSign, Wallet, PiggyBank, TrendingDown, ArrowRight, Download } from 'lucide-react';
 
 interface OverviewSectionProps {
   taxResult: TaxCalculationResult | null;
@@ -40,7 +33,7 @@ export function OverviewSection({
           <h2 className="text-2xl font-bold mb-2">Velkommen til din økonomiapp</h2>
           <p className="text-blue-100 max-w-xl leading-relaxed">
             Få overblik over din skat, budget og investeringsmuligheder baseret på Skattestyrelsens
-            officielle satser for 2025. Start med at indtaste din indkomst.
+            officielle satser for 2025. Brug guidet opsætning eller gå direkte til Indkomst-fanen.
           </p>
           <button
             onClick={onGoToIncome}
@@ -94,10 +87,15 @@ export function OverviewSection({
     );
   }
 
+  // Concrete insight: how much more savings in 20 years if user saves 500 kr more/month
+  const ekstraSpar500 = Math.round(500 * 12 * 20 * 1.85);
+  // Yearly tax paid
+  const aarligSkat = (taxResult.amBidrag + taxResult.bundskat + taxResult.kommuneskat + taxResult.topskat) * 12;
+
   return (
     <div className="space-y-5">
       {/* Hoved-stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Bruttoindkomst"
           value={formatKr(taxResult.bruttoIndkomst)}
@@ -108,7 +106,7 @@ export function OverviewSection({
         <StatCard
           label="Nettoindkomst"
           value={formatKr(taxResult.nettoIndkomst)}
-          subtitle={`Effektiv skat: ${formatPct(taxResult.effektivSkatteprocent)}`}
+          subtitle={`Skat: ${formatKr(aarligSkat / 12)}/mdr.`}
           icon={<DollarSign className="w-4 h-4" />}
           color="green"
         />
@@ -117,18 +115,50 @@ export function OverviewSection({
             <StatCard
               label="Rådighedsbeløb"
               value={formatKr(budgetAnalysis.rådighedsbeløb)}
-              subtitle="efter udgifter"
+              subtitle="efter alle udgifter"
               icon={<Wallet className="w-4 h-4" />}
               color={budgetAnalysis.rådighedsbeløb >= 0 ? 'green' : 'red'}
             />
             <StatCard
               label="Opsparingsrate"
               value={formatPct(budgetAnalysis.opsparingsrate)}
-              subtitle={budgetAnalysis.opsparingsrate >= 20 ? 'Fremragende' : budgetAnalysis.opsparingsrate >= 10 ? 'God' : 'Lav – bør øges'}
+              subtitle={
+                budgetAnalysis.opsparingsrate >= 20
+                  ? 'Fremragende!'
+                  : budgetAnalysis.opsparingsrate >= 10
+                  ? 'God – bliv ved'
+                  : 'Lav – bør øges'
+              }
               icon={<PiggyBank className="w-4 h-4" />}
               color={budgetAnalysis.opsparingsrate >= 20 ? 'green' : budgetAnalysis.opsparingsrate >= 10 ? 'blue' : 'red'}
             />
           </>
+        )}
+      </div>
+
+      {/* Konkret indsigt */}
+      <div className="rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4">
+        <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">💡 Konkret indsigt</p>
+        {budgetAnalysis ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <p className="text-sm text-slate-600">
+                Du betaler <span className="font-bold text-slate-800">{formatKr(aarligSkat)}</span> i skat om året —
+                svarende til {formatPct(taxResult.effektivSkatteprocent)} af din bruttoindkomst.
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-600">
+                Hvis du sætter bare <span className="font-bold text-slate-800">500 kr. mere</span> til side hver måned,
+                kan du have <span className="font-bold text-emerald-700">{formatKr(ekstraSpar500)} mere</span> om 20 år.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-600">
+            Du betaler <span className="font-bold text-slate-800">{formatKr(aarligSkat)}</span> i skat om året.
+            Tilføj dit budget for at se hvad du kan spare.
+          </p>
         )}
       </div>
 
@@ -153,7 +183,7 @@ export function OverviewSection({
             <div className="space-y-2 text-sm">
               {[
                 { label: 'Bruttoindkomst', value: formatKr(taxResult.bruttoIndkomst), cls: 'text-slate-700' },
-                { label: 'AM-bidrag', value: `-${formatKr(taxResult.amBidrag)}`, cls: 'text-red-500' },
+                { label: 'AM-bidrag (8%)', value: `-${formatKr(taxResult.amBidrag)}`, cls: 'text-red-500' },
                 { label: 'Bundskat + Kommuneskat', value: `-${formatKr(taxResult.bundskat + taxResult.kommuneskat)}`, cls: 'text-red-500' },
                 taxResult.topskat > 0 ? { label: 'Topskat', value: `-${formatKr(taxResult.topskat)}`, cls: 'text-red-500' } : null,
               ].filter(Boolean).map((row) => row && (
@@ -165,6 +195,16 @@ export function OverviewSection({
               <div className="flex justify-between font-bold pt-2 border-t border-slate-100 text-base">
                 <span>Nettoindkomst</span>
                 <span className="text-emerald-600">{formatKr(taxResult.nettoIndkomst)}</span>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl bg-slate-50 p-2">
+                <p className="text-xs text-slate-400">Effektiv skat</p>
+                <p className="font-bold text-slate-700">{formatPct(taxResult.effektivSkatteprocent)}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-2">
+                <p className="text-xs text-slate-400">Marginalskat</p>
+                <p className="font-bold text-slate-700">{formatPct(taxResult.marginalSkatteprocent)}</p>
               </div>
             </div>
           </CardContent>
@@ -205,13 +245,12 @@ export function OverviewSection({
                   </span>
                 </div>
               </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="rounded-xl bg-slate-50 p-3 text-center">
+              <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+                <div className="rounded-xl bg-slate-50 p-2">
                   <p className="text-xs text-slate-400">Gældsgrad</p>
                   <p className="font-bold text-slate-700">{formatPct(budgetAnalysis.gældsgrad)}</p>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-3 text-center">
+                <div className="rounded-xl bg-slate-50 p-2">
                   <p className="text-xs text-slate-400">Nødopsparing</p>
                   <p className="font-bold text-slate-700">{budgetAnalysis.nødopsparingDækning.toFixed(1)} mdr.</p>
                 </div>
@@ -224,17 +263,26 @@ export function OverviewSection({
             className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-8 text-center hover:border-emerald-300 hover:bg-emerald-50 transition-all group"
           >
             <Wallet className="w-8 h-8 text-slate-300 mx-auto mb-3 group-hover:text-emerald-400" />
-            <p className="font-medium text-slate-500 group-hover:text-emerald-700">Tilføj budget</p>
+            <p className="font-medium text-slate-500 group-hover:text-emerald-700">Tilføj dit budget</p>
             <p className="text-xs text-slate-400 mt-1">Beregn rådighedsbeløb og opsparingsrate</p>
           </button>
         )}
       </div>
 
-      {/* Advarsler fra budget */}
+      {/* Høj-prioritets advarsler */}
       {budgetAnalysis?.optimeringer.filter((o) => o.prioritet === 'høj').map((opt, i) => (
-        <Alert key={i} type={opt.kategori === 'gæld' ? 'danger' : 'warning'}>
-          {opt.beskrivelse}
-        </Alert>
+        <button
+          key={i}
+          onClick={onGoToBudget}
+          className={`w-full text-left rounded-2xl border px-4 py-3.5 transition-colors group ${
+            opt.kategori === 'gæld'
+              ? 'bg-red-50 border-red-200 text-red-900 hover:bg-red-100 hover:border-red-300'
+              : 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100 hover:border-amber-300'
+          }`}
+        >
+          <p className="text-sm font-semibold">{opt.beskrivelse}</p>
+          <p className="text-xs font-semibold mt-1.5 opacity-70 group-hover:underline">Ret det i budgettet →</p>
+        </button>
       ))}
 
       {/* Quick actions */}
@@ -245,7 +293,7 @@ export function OverviewSection({
         >
           <DollarSign className="w-5 h-5 text-blue-500 mb-2" />
           <p className="text-sm font-medium text-slate-700">Opdater indkomst</p>
-          <p className="text-xs text-slate-400">Ændr løn eller trækprocent</p>
+          <p className="text-xs text-slate-400">Løn eller trækprocent</p>
         </button>
         <button
           onClick={onGoToBudget}
@@ -253,7 +301,7 @@ export function OverviewSection({
         >
           <Wallet className="w-5 h-5 text-emerald-500 mb-2" />
           <p className="text-sm font-medium text-slate-700">Rediger budget</p>
-          <p className="text-xs text-slate-400">Tilpas udgifter og opsparing</p>
+          <p className="text-xs text-slate-400">Udgifter og opsparing</p>
         </button>
         <button
           onClick={onGoToInvestment}
