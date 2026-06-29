@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model FinancialProfile {
+  id        String   @id @default(cuid())
+  navn      String   @default("Min økonomi")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incomeData     String @default("{}")
+  budgetData     String @default("{}")
+  investmentData String @default("{}")
+  aktuelOpsparing Float @default(0)
+
+  @@map("financial_profiles")
+}
