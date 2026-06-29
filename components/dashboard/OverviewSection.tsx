@@ -87,14 +87,11 @@ export function OverviewSection({
     );
   }
 
-  // Concrete insight: how much more savings in 20 years if user saves 500 kr more/month
   const ekstraSpar500 = Math.round(500 * 12 * 20 * 1.85);
-  // Yearly tax paid
   const aarligSkat = (taxResult.amBidrag + taxResult.bundskat + taxResult.kommuneskat + taxResult.topskat) * 12;
 
   return (
     <div className="space-y-5">
-      {/* Hoved-stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Bruttoindkomst"
@@ -136,7 +133,6 @@ export function OverviewSection({
         )}
       </div>
 
-      {/* Konkret indsigt */}
       <div className="rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4">
         <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">💡 Konkret indsigt</p>
         {budgetAnalysis ? (
@@ -162,9 +158,7 @@ export function OverviewSection({
         )}
       </div>
 
-      {/* Hurtigoversigt */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Skattesammendrag */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -210,7 +204,6 @@ export function OverviewSection({
           </CardContent>
         </Card>
 
-        {/* Budget sammendrag */}
         {budgetAnalysis ? (
           <Card>
             <CardHeader>
@@ -269,7 +262,6 @@ export function OverviewSection({
         )}
       </div>
 
-      {/* Høj-prioritets advarsler */}
       {budgetAnalysis?.optimeringer.filter((o) => o.prioritet === 'høj').map((opt, i) => (
         <button
           key={i}
@@ -285,7 +277,6 @@ export function OverviewSection({
         </button>
       ))}
 
-      {/* Quick actions */}
       <div className="grid grid-cols-3 gap-3">
         <button
           onClick={onGoToIncome}

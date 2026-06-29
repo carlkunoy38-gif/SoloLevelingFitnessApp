@@ -31,7 +31,6 @@ export function BudgetSection({ analysis, onGoToBudgetForm }: BudgetSectionProps
 
   return (
     <div className="space-y-5">
-      {/* Status banner */}
       <div className={`rounded-2xl p-4 flex items-center gap-3 ${
         analysis.budgetStatus === 'sund' ? 'bg-emerald-50 border border-emerald-200' :
         analysis.budgetStatus === 'advarsel' ? 'bg-amber-50 border border-amber-200' :
@@ -51,7 +50,6 @@ export function BudgetSection({ analysis, onGoToBudgetForm }: BudgetSectionProps
         <Badge variant={status.color} className="ml-auto">{status.label}</Badge>
       </div>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           label="Rådighedsbeløb"
@@ -84,7 +82,6 @@ export function BudgetSection({ analysis, onGoToBudgetForm }: BudgetSectionProps
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Oversigt */}
         <Card>
           <CardHeader>
             <CardTitle>Budgetoversigt</CardTitle>
@@ -132,7 +129,6 @@ export function BudgetSection({ analysis, onGoToBudgetForm }: BudgetSectionProps
           </CardContent>
         </Card>
 
-        {/* Graf */}
         <Card>
           <CardHeader>
             <CardTitle>Udgiftsfordeling</CardTitle>
@@ -144,7 +140,6 @@ export function BudgetSection({ analysis, onGoToBudgetForm }: BudgetSectionProps
         </Card>
       </div>
 
-      {/* Optimeringsforslag */}
       {analysis.optimeringer.length > 0 && (
         <Card>
           <CardHeader>

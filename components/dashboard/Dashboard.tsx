@@ -1,11 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { IncomeData, BudgetData, InvestmentProfile, TaxCalculationResult, BudgetAnalysis } from '@/types';
 import { calculateTaxEstimate } from '@/lib/tax/calculations';
 import { analyzeBudget } from '@/lib/calculations/budget';
 import { suggestInvestmentAllocation, simulateInvestmentGrowth } from '@/lib/investment/allocation';
-import { loadState, saveState, hasCompletedOnboarding, markOnboardingComplete, type AppState } from '@/lib/store';
+import {
+  loadProfiles, getActiveProfileId, setActiveProfileId,
+  createProfile, updateProfile, deleteProfile, getOrCreateActiveProfile,
+  type Profile,
+} from '@/lib/profiles';
+import { hasCompletedOnboarding, markOnboardingComplete } from '@/lib/store';
 import { IncomeForm } from '@/components/forms/IncomeForm';
 import { BudgetForm } from '@/components/forms/BudgetForm';
 import { InvestmentForm } from '@/components/forms/InvestmentForm';
@@ -14,56 +19,105 @@ import { BudgetSection } from '@/components/dashboard/BudgetSection';
 import { InvestmentSection } from '@/components/dashboard/InvestmentSection';
 import { OverviewSection } from '@/components/dashboard/OverviewSection';
 import { StatusBanner } from '@/components/dashboard/StatusBanner';
+import { AiAdvisorSection } from '@/components/dashboard/AiAdvisorSection';
+import { MarketDataWidget } from '@/components/dashboard/MarketDataWidget';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
+import { ProfileSwitcher } from '@/components/ui/ProfileSwitcher';
 import { Card, CardContent } from '@/components/ui/card';
 import { exportTaxToCSV, exportBudgetToCSV, exportFullReportToPDF } from '@/lib/export';
-import { LayoutDashboard, DollarSign, Wallet, TrendingUp, Download, Save } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Wallet, TrendingUp, Download, Sparkles } from 'lucide-react';
 
-type Tab = 'oversigt' | 'indkomst' | 'budget' | 'investering';
+type Tab = 'oversigt' | 'indkomst' | 'budget' | 'investering' | 'ai';
 
 const TABS: { id: Tab; label: string; shortLabel: string; icon: React.ReactNode }[] = [
   { id: 'oversigt', label: 'Oversigt', shortLabel: 'Oversigt', icon: <LayoutDashboard className="w-5 h-5" /> },
-  { id: 'indkomst', label: 'Indkomst & Skat', shortLabel: 'Skat', icon: <DollarSign className="w-5 h-5" /> },
+  { id: 'indkomst', label: 'Skat', shortLabel: 'Skat', icon: <DollarSign className="w-5 h-5" /> },
   { id: 'budget', label: 'Budget', shortLabel: 'Budget', icon: <Wallet className="w-5 h-5" /> },
   { id: 'investering', label: 'Investering', shortLabel: 'Invest.', icon: <TrendingUp className="w-5 h-5" /> },
+  { id: 'ai', label: 'AI Rådgiver', shortLabel: 'AI', icon: <Sparkles className="w-5 h-5" /> },
 ];
+
+function computeFromProfile(profile: Profile): { tax: TaxCalculationResult | null; budget: BudgetAnalysis | null } {
+  if (!profile.income.bruttoIndkomst || profile.income.bruttoIndkomst === 0) {
+    return { tax: null, budget: null };
+  }
+  const tax = calculateTaxEstimate(profile.income as IncomeData);
+  const budget = analyzeBudget(tax.nettoIndkomst, profile.budget, profile.aktuelOpsparing);
+  return { tax, budget };
+}
 
 export function Dashboard() {
   const [tab, setTab] = useState<Tab>('oversigt');
-  const [state, setState] = useState<AppState | null>(null);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [activeId, setActiveId] = useState<string>('');
   const [taxResult, setTaxResult] = useState<TaxCalculationResult | null>(null);
   const [budgetAnalysis, setBudgetAnalysis] = useState<BudgetAnalysis | null>(null);
   const [saved, setSaved] = useState(false);
-  const [aktuelOpsparing, setAktuelOpsparing] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  const activeProfile = profiles.find(p => p.id === activeId) ?? null;
+
+  const refreshComputations = useCallback((profile: Profile) => {
+    const { tax, budget } = computeFromProfile(profile);
+    setTaxResult(tax);
+    setBudgetAnalysis(budget);
+  }, []);
 
   useEffect(() => {
-    const loaded = loadState();
-    setState(loaded);
-    setAktuelOpsparing(loaded.aktuelOpsparing);
+    const profile = getOrCreateActiveProfile();
+    const all = loadProfiles();
+    setProfiles(all);
+    setActiveId(profile.id);
+    refreshComputations(profile);
+    setReady(true);
+    if (!hasCompletedOnboarding()) setShowOnboarding(true);
+  }, [refreshComputations]);
 
-    if (loaded.income.bruttoIndkomst && loaded.income.bruttoIndkomst > 0) {
-      const tax = calculateTaxEstimate(loaded.income as IncomeData);
-      setTaxResult(tax);
-      const analysis = analyzeBudget(tax.nettoIndkomst, loaded.budget, loaded.aktuelOpsparing);
-      setBudgetAnalysis(analysis);
-    }
+  function switchProfile(id: string) {
+    setActiveProfileId(id);
+    setActiveId(id);
+    const profile = loadProfiles().find(p => p.id === id);
+    if (profile) refreshComputations(profile);
+  }
 
-    if (!hasCompletedOnboarding()) {
-      setShowOnboarding(true);
+  function handleCreateProfile(navn: string) {
+    const profile = createProfile(navn);
+    const all = loadProfiles();
+    setProfiles(all);
+    switchProfile(profile.id);
+  }
+
+  function handleDeleteProfile(id: string) {
+    deleteProfile(id);
+    const all = loadProfiles();
+    setProfiles(all);
+    if (id === activeId && all.length > 0) {
+      switchProfile(all[0].id);
     }
-  }, []);
+  }
+
+  function handleRenameProfile(id: string, navn: string) {
+    updateProfile(id, { navn });
+    setProfiles(loadProfiles());
+  }
+
+  function saveActiveProfile(updates: Partial<Profile>) {
+    if (!activeId) return;
+    updateProfile(activeId, updates);
+    setProfiles(loadProfiles());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
 
   function handleOnboardingComplete(income: IncomeData, budget: BudgetData) {
     markOnboardingComplete();
     setShowOnboarding(false);
     const tax = calculateTaxEstimate(income);
     setTaxResult(tax);
-    const analysis = analyzeBudget(tax.nettoIndkomst, budget, 0);
-    setBudgetAnalysis(analysis);
-    const newState = { ...state!, income, budget };
-    setState(newState);
-    saveState(newState);
+    const ba = analyzeBudget(tax.nettoIndkomst, budget, 0);
+    setBudgetAnalysis(ba);
+    saveActiveProfile({ income, budget, aktuelOpsparing: 0 });
   }
 
   function handleOnboardingSkip() {
@@ -74,114 +128,106 @@ export function Dashboard() {
   function handleIncomeSubmit(income: IncomeData) {
     const tax = calculateTaxEstimate(income);
     setTaxResult(tax);
-    const newState = { ...state!, income };
-    const analysis = analyzeBudget(tax.nettoIndkomst, newState.budget, aktuelOpsparing);
-    setBudgetAnalysis(analysis);
-    setState(newState);
+    const profile = loadProfiles().find(p => p.id === activeId);
+    const ba = analyzeBudget(tax.nettoIndkomst, profile?.budget ?? activeProfile!.budget, profile?.aktuelOpsparing ?? 0);
+    setBudgetAnalysis(ba);
+    saveActiveProfile({ income });
     setTab('oversigt');
   }
 
   function handleBudgetSubmit(budget: BudgetData) {
     if (!taxResult) return;
-    const analysis = analyzeBudget(taxResult.nettoIndkomst, budget, aktuelOpsparing);
-    setBudgetAnalysis(analysis);
-    const newState = { ...state!, budget };
-    setState(newState);
+    const profile = loadProfiles().find(p => p.id === activeId);
+    const ba = analyzeBudget(taxResult.nettoIndkomst, budget, profile?.aktuelOpsparing ?? 0);
+    setBudgetAnalysis(ba);
+    saveActiveProfile({ budget });
     setTab('oversigt');
   }
 
   function handleInvestmentSubmit(investment: InvestmentProfile) {
-    const newState = { ...state!, investment };
-    setState(newState);
+    saveActiveProfile({ investment });
     setTab('oversigt');
-  }
-
-  function handleSave() {
-    if (!state) return;
-    saveState({ ...state, aktuelOpsparing });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
 
   function handleExportPDF() {
     if (!taxResult) return;
-    const sim = state?.investment?.alder
+    const profile = loadProfiles().find(p => p.id === activeId);
+    const inv = profile?.investment as InvestmentProfile | undefined;
+    const sim = inv?.alder
       ? simulateInvestmentGrowth(
-          state.investment.månedligtOverskud ?? 1000,
-          state.investment.tidshorisont ?? 20,
-          suggestInvestmentAllocation(state.investment as InvestmentProfile),
+          inv.månedligtOverskud ?? 1000,
+          inv.tidshorisont ?? 20,
+          suggestInvestmentAllocation(inv),
         )
       : null;
     exportFullReportToPDF(taxResult, budgetAnalysis!, sim);
   }
 
-  if (!state) {
+  if (!ready) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-pulse text-slate-400 text-sm">Indlæser...</div>
+        <div className="animate-pulse text-slate-400 text-sm">Indlæser…</div>
       </div>
     );
   }
 
-  const investmentProfile = state.investment as InvestmentProfile | undefined;
+  const investmentProfile = activeProfile?.investment as InvestmentProfile | undefined;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20 md:pb-0">
-      {/* Onboarding wizard */}
       {showOnboarding && (
-        <OnboardingWizard
-          onComplete={handleOnboardingComplete}
-          onSkip={handleOnboardingSkip}
-        />
+        <OnboardingWizard onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />
       )}
 
-      {/* Desktop header */}
+      {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">Dansk Økonomiapp</h1>
-            <p className="text-xs text-slate-400 hidden sm:block">Skat · Budget · Investering · 2025-satser</p>
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-slate-900 truncate">Dansk Økonomiapp</h1>
+            <p className="text-xs text-slate-400 hidden sm:block">Skat · Budget · Investering · 2025</p>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-2 shrink-0">
+            <ProfileSwitcher
+              profiles={profiles}
+              activeId={activeId}
+              onSwitch={switchProfile}
+              onCreate={handleCreateProfile}
+              onDelete={handleDeleteProfile}
+              onRename={handleRenameProfile}
+            />
+
             <div className="hidden sm:flex items-center gap-1">
-              <label className="text-xs text-slate-500">Nødopsparing:</label>
+              <label className="text-xs text-slate-500">Nødopsp.:</label>
               <input
                 type="number"
-                value={aktuelOpsparing}
+                value={activeProfile?.aktuelOpsparing ?? 0}
                 onChange={(e) => {
                   const v = Number(e.target.value);
-                  setAktuelOpsparing(v);
-                  if (taxResult && state.budget) {
-                    setBudgetAnalysis(analyzeBudget(taxResult.nettoIndkomst, state.budget, v));
+                  updateProfile(activeId, { aktuelOpsparing: v });
+                  setProfiles(loadProfiles());
+                  if (taxResult && activeProfile) {
+                    setBudgetAnalysis(analyzeBudget(taxResult.nettoIndkomst, activeProfile.budget, v));
                   }
                 }}
-                className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                placeholder="0 kr."
+                className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                placeholder="0"
               />
               <span className="text-xs text-slate-400">kr.</span>
             </div>
-            <button
-              onClick={handleSave}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors ${
-                saved ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{saved ? 'Gemt!' : 'Gem'}</span>
-            </button>
+
             {taxResult && budgetAnalysis && (
               <button
                 onClick={handleExportPDF}
                 className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
-                PDF
+                <span className="hidden sm:inline">PDF</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Desktop tabs (hidden on mobile) */}
         <div className="hidden md:flex max-w-6xl mx-auto px-4 gap-1 pb-1">
           {TABS.map((t) => (
             <button
@@ -189,7 +235,7 @@ export function Dashboard() {
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-sm font-medium transition-colors ${
                 tab === t.id
-                  ? 'bg-blue-600 text-white'
+                  ? t.id === 'ai' ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
               }`}
             >
@@ -200,9 +246,7 @@ export function Dashboard() {
         </div>
       </header>
 
-      {/* Main content */}
       <main className="max-w-6xl mx-auto px-4 py-5 space-y-4">
-        {/* Status banner – always visible when tax data exists */}
         <StatusBanner
           tax={taxResult}
           budget={budgetAnalysis}
@@ -228,7 +272,7 @@ export function Dashboard() {
               <CardContent className="pt-5">
                 <h2 className="text-lg font-semibold text-slate-800 mb-4">Indkomst & Skatteestimat</h2>
                 <IncomeForm
-                  defaultValues={state.income as Partial<IncomeData>}
+                  defaultValues={activeProfile?.income as Partial<IncomeData>}
                   onSubmit={handleIncomeSubmit}
                 />
               </CardContent>
@@ -248,7 +292,7 @@ export function Dashboard() {
                   </p>
                 )}
                 <BudgetForm
-                  defaultValues={state.budget}
+                  defaultValues={activeProfile?.budget}
                   nettoIndkomst={taxResult?.nettoIndkomst ?? 0}
                   onSubmit={handleBudgetSubmit}
                 />
@@ -257,9 +301,7 @@ export function Dashboard() {
             {budgetAnalysis && (
               <BudgetSection
                 analysis={budgetAnalysis}
-                onGoToBudgetForm={() => {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
+                onGoToBudgetForm={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
               />
             )}
           </div>
@@ -267,11 +309,12 @@ export function Dashboard() {
 
         {tab === 'investering' && (
           <div className="space-y-5">
+            <MarketDataWidget />
             <Card>
               <CardContent className="pt-5">
                 <h2 className="text-lg font-semibold text-slate-800 mb-4">Investeringsprofil</h2>
                 <InvestmentForm
-                  defaultValues={state.investment as Partial<InvestmentProfile>}
+                  defaultValues={activeProfile?.investment as Partial<InvestmentProfile>}
                   onSubmit={handleInvestmentSubmit}
                 />
               </CardContent>
@@ -281,21 +324,22 @@ export function Dashboard() {
             )}
           </div>
         )}
+
+        {tab === 'ai' && (
+          <AiAdvisorSection taxResult={taxResult} budgetAnalysis={budgetAnalysis} />
+        )}
       </main>
 
-      {/* Footer – desktop only */}
       <footer className="hidden md:block mt-16 border-t border-slate-200 bg-white py-8">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <p className="text-xs text-slate-400 leading-relaxed max-w-2xl mx-auto">
-            Alle beregninger er estimater baseret på Skattestyrelsens offentliggjorte satser for skatteåret 2025.
-            Appen udgør ikke autoriseret skatte- eller investeringsrådgivning. Konsultér altid Skattestyrelsen
-            (skat.dk) og en certificeret rådgiver for din konkrete situation.
+            Alle beregninger er estimater baseret på Skattestyrelsens satser for 2025.
+            Appen udgør ikke autoriseret skatte- eller investeringsrådgivning.
           </p>
         </div>
       </footer>
 
-      {/* Mobile bottom navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 safe-area-inset-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30">
         <div className="flex">
           {TABS.map((t) => (
             <button
@@ -303,7 +347,7 @@ export function Dashboard() {
               onClick={() => setTab(t.id)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors ${
                 tab === t.id
-                  ? 'text-blue-600'
+                  ? t.id === 'ai' ? 'text-indigo-600' : 'text-blue-600'
                   : 'text-slate-400'
               }`}
             >
@@ -311,9 +355,6 @@ export function Dashboard() {
                 {t.icon}
               </span>
               {t.shortLabel}
-              {tab === t.id && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full" />
-              )}
             </button>
           ))}
         </div>
