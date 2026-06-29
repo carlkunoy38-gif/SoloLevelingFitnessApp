@@ -11,6 +11,7 @@ import { Wallet, PiggyBank, TrendingDown, Shield } from 'lucide-react';
 
 interface BudgetSectionProps {
   analysis: BudgetAnalysis;
+  onGoToBudgetForm?: () => void;
 }
 
 const PRIORITET_STYLES = {
@@ -25,7 +26,7 @@ const STATUS_MAP = {
   kritisk: { label: 'Kritisk – tag handling nu', color: 'danger' },
 } as const;
 
-export function BudgetSection({ analysis }: BudgetSectionProps) {
+export function BudgetSection({ analysis, onGoToBudgetForm }: BudgetSectionProps) {
   const status = STATUS_MAP[analysis.budgetStatus];
 
   return (
@@ -108,7 +109,21 @@ export function BudgetSection({ analysis }: BudgetSectionProps) {
               </div>
             </div>
 
-            {analysis.nødopsparingDækning < 3 && (
+            {analysis.nødopsparingDækning < 3 && onGoToBudgetForm && (
+              <button
+                onClick={onGoToBudgetForm}
+                className="mt-4 w-full text-left rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 hover:bg-amber-100 hover:border-amber-300 transition-colors group"
+              >
+                <p className="text-sm font-medium text-amber-800">
+                  ⚠️ Din nødopsparing dækker kun {analysis.nødopsparingDækning.toFixed(1)} måneder.
+                </p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  Prioritér at opbygge {formatKr(analysis.anbefaletNødopsparing - analysis.aktuelOpsparing)} mere.
+                </p>
+                <p className="text-xs font-semibold text-amber-700 mt-1.5 group-hover:underline">Ret det i budgettet →</p>
+              </button>
+            )}
+            {analysis.nødopsparingDækning < 3 && !onGoToBudgetForm && (
               <Alert type="warning" className="mt-4">
                 Din nødopsparing dækker kun {analysis.nødopsparingDækning.toFixed(1)} måneder.
                 Prioritér at opbygge {formatKr(analysis.anbefaletNødopsparing - analysis.aktuelOpsparing)} mere.
@@ -138,11 +153,18 @@ export function BudgetSection({ analysis }: BudgetSectionProps) {
           <CardContent>
             <div className="space-y-3">
               {analysis.optimeringer.map((opt, idx) => (
-                <div key={idx} className={`rounded-xl p-4 border ${
-                  opt.prioritet === 'høj' ? 'bg-red-50 border-red-100' :
-                  opt.prioritet === 'medium' ? 'bg-amber-50 border-amber-100' :
-                  'bg-blue-50 border-blue-100'
-                }`}>
+                <button
+                  key={idx}
+                  onClick={onGoToBudgetForm}
+                  disabled={!onGoToBudgetForm}
+                  className={`w-full text-left rounded-xl p-4 border transition-all group ${
+                    onGoToBudgetForm ? 'hover:shadow-md hover:scale-[1.01] cursor-pointer' : 'cursor-default'
+                  } ${
+                    opt.prioritet === 'høj' ? 'bg-red-50 border-red-100 hover:border-red-300' :
+                    opt.prioritet === 'medium' ? 'bg-amber-50 border-amber-100 hover:border-amber-300' :
+                    'bg-blue-50 border-blue-100 hover:border-blue-300'
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm text-slate-700 leading-relaxed flex-1">{opt.beskrivelse}</p>
                     <div className="text-right shrink-0">
@@ -157,7 +179,13 @@ export function BudgetSection({ analysis }: BudgetSectionProps) {
                       </Badge>
                     </div>
                   </div>
-                </div>
+                  {onGoToBudgetForm && (
+                    <p className={`text-xs font-semibold mt-2 group-hover:underline ${
+                      opt.prioritet === 'høj' ? 'text-red-600' :
+                      opt.prioritet === 'medium' ? 'text-amber-600' : 'text-blue-600'
+                    }`}>Ret det i budgettet →</p>
+                  )}
+                </button>
               ))}
             </div>
           </CardContent>

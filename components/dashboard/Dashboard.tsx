@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { IncomeData, BudgetData, InvestmentProfile, TaxCalculationResult, BudgetAnalysis, InvestmentSimulation } from '@/types';
+import type { IncomeData, BudgetData, InvestmentProfile, TaxCalculationResult, BudgetAnalysis } from '@/types';
 import { calculateTaxEstimate } from '@/lib/tax/calculations';
 import { analyzeBudget } from '@/lib/calculations/budget';
 import { suggestInvestmentAllocation, simulateInvestmentGrowth } from '@/lib/investment/allocation';
-import { loadState, saveState, type AppState } from '@/lib/store';
+import { loadState, saveState, hasCompletedOnboarding, markOnboardingComplete, type AppState } from '@/lib/store';
 import { IncomeForm } from '@/components/forms/IncomeForm';
 import { BudgetForm } from '@/components/forms/BudgetForm';
 import { InvestmentForm } from '@/components/forms/InvestmentForm';
@@ -13,24 +13,19 @@ import { TaxSection } from '@/components/dashboard/TaxSection';
 import { BudgetSection } from '@/components/dashboard/BudgetSection';
 import { InvestmentSection } from '@/components/dashboard/InvestmentSection';
 import { OverviewSection } from '@/components/dashboard/OverviewSection';
+import { StatusBanner } from '@/components/dashboard/StatusBanner';
+import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { Card, CardContent } from '@/components/ui/card';
 import { exportTaxToCSV, exportBudgetToCSV, exportFullReportToPDF } from '@/lib/export';
-import {
-  LayoutDashboard,
-  DollarSign,
-  Wallet,
-  TrendingUp,
-  Download,
-  Save,
-} from 'lucide-react';
+import { LayoutDashboard, DollarSign, Wallet, TrendingUp, Download, Save } from 'lucide-react';
 
 type Tab = 'oversigt' | 'indkomst' | 'budget' | 'investering';
 
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'oversigt', label: 'Oversigt', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: 'indkomst', label: 'Indkomst & Skat', icon: <DollarSign className="w-4 h-4" /> },
-  { id: 'budget', label: 'Budget', icon: <Wallet className="w-4 h-4" /> },
-  { id: 'investering', label: 'Investering', icon: <TrendingUp className="w-4 h-4" /> },
+const TABS: { id: Tab; label: string; shortLabel: string; icon: React.ReactNode }[] = [
+  { id: 'oversigt', label: 'Oversigt', shortLabel: 'Oversigt', icon: <LayoutDashboard className="w-5 h-5" /> },
+  { id: 'indkomst', label: 'Indkomst & Skat', shortLabel: 'Skat', icon: <DollarSign className="w-5 h-5" /> },
+  { id: 'budget', label: 'Budget', shortLabel: 'Budget', icon: <Wallet className="w-5 h-5" /> },
+  { id: 'investering', label: 'Investering', shortLabel: 'Invest.', icon: <TrendingUp className="w-5 h-5" /> },
 ];
 
 export function Dashboard() {
@@ -40,23 +35,46 @@ export function Dashboard() {
   const [budgetAnalysis, setBudgetAnalysis] = useState<BudgetAnalysis | null>(null);
   const [saved, setSaved] = useState(false);
   const [aktuelOpsparing, setAktuelOpsparing] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     const loaded = loadState();
     setState(loaded);
     setAktuelOpsparing(loaded.aktuelOpsparing);
+
     if (loaded.income.bruttoIndkomst && loaded.income.bruttoIndkomst > 0) {
       const tax = calculateTaxEstimate(loaded.income as IncomeData);
       setTaxResult(tax);
       const analysis = analyzeBudget(tax.nettoIndkomst, loaded.budget, loaded.aktuelOpsparing);
       setBudgetAnalysis(analysis);
     }
+
+    if (!hasCompletedOnboarding()) {
+      setShowOnboarding(true);
+    }
   }, []);
+
+  function handleOnboardingComplete(income: IncomeData, budget: BudgetData) {
+    markOnboardingComplete();
+    setShowOnboarding(false);
+    const tax = calculateTaxEstimate(income);
+    setTaxResult(tax);
+    const analysis = analyzeBudget(tax.nettoIndkomst, budget, 0);
+    setBudgetAnalysis(analysis);
+    const newState = { ...state!, income, budget };
+    setState(newState);
+    saveState(newState);
+  }
+
+  function handleOnboardingSkip() {
+    markOnboardingComplete();
+    setShowOnboarding(false);
+  }
 
   function handleIncomeSubmit(income: IncomeData) {
     const tax = calculateTaxEstimate(income);
     setTaxResult(tax);
-    const newState = { ...state!, income, budget: state!.budget };
+    const newState = { ...state!, income };
     const analysis = analyzeBudget(tax.nettoIndkomst, newState.budget, aktuelOpsparing);
     setBudgetAnalysis(analysis);
     setState(newState);
@@ -64,9 +82,8 @@ export function Dashboard() {
   }
 
   function handleBudgetSubmit(budget: BudgetData) {
-    const tax = taxResult;
-    if (!tax) return;
-    const analysis = analyzeBudget(tax.nettoIndkomst, budget, aktuelOpsparing);
+    if (!taxResult) return;
+    const analysis = analyzeBudget(taxResult.nettoIndkomst, budget, aktuelOpsparing);
     setBudgetAnalysis(analysis);
     const newState = { ...state!, budget };
     setState(newState);
@@ -109,16 +126,24 @@ export function Dashboard() {
   const investmentProfile = state.investment as InvestmentProfile | undefined;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
+    <div className="min-h-screen bg-slate-50 pb-20 md:pb-0">
+      {/* Onboarding wizard */}
+      {showOnboarding && (
+        <OnboardingWizard
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      )}
+
+      {/* Desktop header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-slate-900">Dansk Økonomiapp</h1>
-            <p className="text-xs text-slate-400">Skat · Budget · Investering · 2025-satser</p>
+            <p className="text-xs text-slate-400 hidden sm:block">Skat · Budget · Investering · 2025-satser</p>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
+            <div className="hidden sm:flex items-center gap-1">
               <label className="text-xs text-slate-500">Nødopsparing:</label>
               <input
                 type="number"
@@ -142,7 +167,7 @@ export function Dashboard() {
               }`}
             >
               <Save className="w-3.5 h-3.5" />
-              {saved ? 'Gemt!' : 'Gem'}
+              <span className="hidden sm:inline">{saved ? 'Gemt!' : 'Gem'}</span>
             </button>
             {taxResult && budgetAnalysis && (
               <button
@@ -156,8 +181,8 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="max-w-6xl mx-auto px-4 flex gap-1 pb-1">
+        {/* Desktop tabs (hidden on mobile) */}
+        <div className="hidden md:flex max-w-6xl mx-auto px-4 gap-1 pb-1">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -176,7 +201,15 @@ export function Dashboard() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-5 space-y-4">
+        {/* Status banner – always visible when tax data exists */}
+        <StatusBanner
+          tax={taxResult}
+          budget={budgetAnalysis}
+          onGoToBudget={() => setTab('budget')}
+          onGoToIncome={() => setTab('indkomst')}
+        />
+
         {tab === 'oversigt' && (
           <OverviewSection
             taxResult={taxResult}
@@ -221,7 +254,14 @@ export function Dashboard() {
                 />
               </CardContent>
             </Card>
-            {budgetAnalysis && <BudgetSection analysis={budgetAnalysis} />}
+            {budgetAnalysis && (
+              <BudgetSection
+                analysis={budgetAnalysis}
+                onGoToBudgetForm={() => {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
+            )}
           </div>
         )}
 
@@ -243,17 +283,41 @@ export function Dashboard() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="mt-16 border-t border-slate-200 bg-white py-8">
+      {/* Footer – desktop only */}
+      <footer className="hidden md:block mt-16 border-t border-slate-200 bg-white py-8">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <p className="text-xs text-slate-400 leading-relaxed max-w-2xl mx-auto">
             Alle beregninger er estimater baseret på Skattestyrelsens offentliggjorte satser for skatteåret 2025.
             Appen udgør ikke autoriseret skatte- eller investeringsrådgivning. Konsultér altid Skattestyrelsen
             (skat.dk) og en certificeret rådgiver for din konkrete situation.
-            Satser opdateres årligt i <code>/data/tax-rates/</code>.
           </p>
         </div>
       </footer>
+
+      {/* Mobile bottom navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 safe-area-inset-bottom">
+        <div className="flex">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors ${
+                tab === t.id
+                  ? 'text-blue-600'
+                  : 'text-slate-400'
+              }`}
+            >
+              <span className={`transition-transform ${tab === t.id ? 'scale-110' : ''}`}>
+                {t.icon}
+              </span>
+              {t.shortLabel}
+              {tab === t.id && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
