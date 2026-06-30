@@ -174,7 +174,7 @@ export function Dashboard() {
   const investmentProfile = activeProfile?.investment as InvestmentProfile | undefined;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 md:pb-0">
+    <div className="min-h-screen bg-slate-50" style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' }}>
       {showOnboarding && (
         <OnboardingWizard onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />
       )}
@@ -339,12 +339,17 @@ export function Dashboard() {
         </div>
       </footer>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30">
+      {/* Mobil bundnavigation – højere z-index og safe-area padding til iOS */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         <div className="flex">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
+              style={{ touchAction: 'manipulation' }}
               className={`flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors ${
                 tab === t.id
                   ? t.id === 'ai' ? 'text-indigo-600' : 'text-blue-600'
