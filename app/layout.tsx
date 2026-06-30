@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Dansk Økonomiapp – Skat, Budget & Investering',
-  description: 'Personlig økonomiassistent med skatteestimat, budgetanalyse og investeringsscenarier baseret på danske regler.',
+  title: 'Dansk Økonomia pp – Skat, Budget & Investering',
+  description: 'Personlig økonomia ssistent med skatteestimat, budgetanalyse og investeringsscenarier baseret på danske regler.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Økonomiapp',
+    title: 'Økonomia pp',
   },
 };
 

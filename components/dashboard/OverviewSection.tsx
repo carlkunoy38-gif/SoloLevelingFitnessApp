@@ -30,7 +30,7 @@ export function OverviewSection({
     return (
       <div className="space-y-5">
         <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white">
-          <h2 className="text-2xl font-bold mb-2">Velkommen til din økonomiapp</h2>
+          <h2 className="text-2xl font-bold mb-2">Velkommen til din økonomia pp</h2>
           <p className="text-blue-100 max-w-xl leading-relaxed">
             Få overblik over din skat, budget og investeringsmuligheder baseret på Skattestyrelsens
             officielle satser for 2025. Brug guidet opsætning eller gå direkte til Indkomst-fanen.
@@ -87,9 +87,7 @@ export function OverviewSection({
     );
   }
 
-  // Concrete insight: how much more savings in 20 years if user saves 500 kr more/month
   const ekstraSpar500 = Math.round(500 * 12 * 20 * 1.85);
-  // Yearly tax paid
   const aarligSkat = (taxResult.amBidrag + taxResult.bundskat + taxResult.kommuneskat + taxResult.topskat) * 12;
 
   return (
@@ -164,7 +162,7 @@ export function OverviewSection({
 
       {/* Hurtigoversigt */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Skattesammendrag */}
+        {/* Skattesammendr a g */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">

@@ -96,6 +96,7 @@ export function AiAdvisorSection({ taxResult, budgetAnalysis }: AiAdvisorSection
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Intro */}
       {isEmpty && (
         <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 p-6 text-white">
           <div className="flex items-center gap-3 mb-3">
@@ -110,11 +111,12 @@ export function AiAdvisorSection({ taxResult, budgetAnalysis }: AiAdvisorSection
           <p className="text-sm text-indigo-100 leading-relaxed">
             {taxResult
               ? `Jeg kender din økonomi — ${formatKr(taxResult.nettoIndkomst)}/mdr. til rådighed efter skat. Stil mig et spørgsmål.`
-              : 'Indtæst din indkomst i Skat-fanen, så kan jeg give dig personlige råd.'}
+              : 'Indtast din indkomst i Skat-fanen, så kan jeg give dig personlige råd.'}
           </p>
         </div>
       )}
 
+      {/* Suggested questions */}
       {isEmpty && (
         <div>
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Prøv at spørge</p>
@@ -132,6 +134,7 @@ export function AiAdvisorSection({ taxResult, budgetAnalysis }: AiAdvisorSection
         </div>
       )}
 
+      {/* Chat history */}
       {messages.length > 0 && (
         <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
           <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
@@ -185,6 +188,7 @@ export function AiAdvisorSection({ taxResult, budgetAnalysis }: AiAdvisorSection
             <div ref={bottomRef} />
           </div>
 
+          {/* Quick suggestions after first message */}
           <div className="border-t border-slate-100 px-4 py-2 flex gap-2 overflow-x-auto">
             {SUGGESTED.slice(0, 3).map(q => (
               <button
@@ -200,6 +204,7 @@ export function AiAdvisorSection({ taxResult, budgetAnalysis }: AiAdvisorSection
         </div>
       )}
 
+      {/* Input */}
       <div className="flex gap-2">
         <input
           value={input}

@@ -6,7 +6,7 @@ import { calculateTaxEstimate } from '@/lib/tax/calculations';
 import { analyzeBudget } from '@/lib/calculations/budget';
 import { suggestInvestmentAllocation, simulateInvestmentGrowth } from '@/lib/investment/allocation';
 import {
-  loadProfiles, getActiveProfileId, setActiveProfileId,
+  loadProfiles, setActiveProfileId,
   createProfile, updateProfile, deleteProfile, getOrCreateActiveProfile,
   type Profile,
 } from '@/lib/profiles';
@@ -25,7 +25,7 @@ import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { ProfileSwitcher } from '@/components/ui/ProfileSwitcher';
 import { Card, CardContent } from '@/components/ui/card';
 import { exportTaxToCSV, exportBudgetToCSV, exportFullReportToPDF } from '@/lib/export';
-import { LayoutDashboard, DollarSign, Wallet, TrendingUp, Download, Sparkles } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Wallet, TrendingUp, Download, Sparkles, Shield } from 'lucide-react';
 
 type Tab = 'oversigt' | 'indkomst' | 'budget' | 'investering' | 'ai';
 
@@ -141,6 +141,22 @@ export function Dashboard() {
     setTab('oversigt');
   }
 
+  function handleNodopsparingChange(v: number) {
+    updateProfile(activeId, { aktuelOpsparing: v });
+    setProfiles(loadProfiles());
+    if (taxResult && activeProfile) {
+      setBudgetAnalysis(analyzeBudget(taxResult.nettoIndkomst, activeProfile.budget, v));
+    }
+  }
+
+  function goToNodopsparing() {
+    setTab('budget');
+    setTimeout(() => {
+      document.getElementById('nodopsparing-felt')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      (document.getElementById('nodopsparing-input') as HTMLInputElement | null)?.focus();
+    }, 80);
+  }
+
   function handleInvestmentSubmit(investment: InvestmentProfile) {
     saveActiveProfile({ investment });
     setTab('oversigt');
@@ -171,7 +187,7 @@ export function Dashboard() {
   const investmentProfile = activeProfile?.investment as InvestmentProfile | undefined;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 md:pb-0">
+    <div className="min-h-screen bg-slate-50">
       {showOnboarding && (
         <OnboardingWizard onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />
       )}
@@ -180,11 +196,12 @@ export function Dashboard() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-slate-900 truncate">Dansk Økonomiapp</h1>
+            <h1 className="text-lg font-bold text-slate-900 truncate">Dansk Økonomia pp</h1>
             <p className="text-xs text-slate-400 hidden sm:block">Skat · Budget · Investering · 2025</p>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Profile switcher */}
             <ProfileSwitcher
               profiles={profiles}
               activeId={activeId}
@@ -194,19 +211,13 @@ export function Dashboard() {
               onRename={handleRenameProfile}
             />
 
+            {/* Nødopsparing – desktop only */}
             <div className="hidden sm:flex items-center gap-1">
-              <label className="text-xs text-slate-500">Nødopsb.:</label>
+              <label className="text-xs text-slate-500">Nødopsp.:</label>
               <input
                 type="number"
                 value={activeProfile?.aktuelOpsparing ?? 0}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  updateProfile(activeId, { aktuelOpsparing: v });
-                  setProfiles(loadProfiles());
-                  if (taxResult && activeProfile) {
-                    setBudgetAnalysis(analyzeBudget(taxResult.nettoIndkomst, activeProfile.budget, v));
-                  }
-                }}
+                onChange={(e) => handleNodopsparingChange(Number(e.target.value))}
                 className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs"
                 placeholder="0"
               />
@@ -225,6 +236,7 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* Desktop tabs */}
         <div className="hidden md:flex max-w-6xl mx-auto px-4 gap-1 pb-1">
           {TABS.map((t) => (
             <button
@@ -243,11 +255,15 @@ export function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-5 space-y-4">
+      {/* Main content */}
+      <main
+        className="max-w-6xl mx-auto px-4 py-5 space-y-4"
+        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}
+      >
         <StatusBanner
           tax={taxResult}
           budget={budgetAnalysis}
-          onGoToBudget={() => setTab('budget')}
+          onGoToBudget={goToNodopsparing}
           onGoToIncome={() => setTab('indkomst')}
         />
 
@@ -256,7 +272,7 @@ export function Dashboard() {
             taxResult={taxResult}
             budgetAnalysis={budgetAnalysis}
             onGoToIncome={() => setTab('indkomst')}
-            onGoToBudget={() => setTab('budget')}
+            onGoToBudget={goToNodopsparing}
             onGoToInvestment={() => setTab('investering')}
             onExportCSVTax={() => taxResult && exportTaxToCSV(taxResult)}
             onExportCSVBudget={() => budgetAnalysis && exportBudgetToCSV(budgetAnalysis)}
@@ -267,7 +283,7 @@ export function Dashboard() {
           <div className="space-y-5">
             <Card>
               <CardContent className="pt-5">
-                <h2 className="text-lg font-semibold text-slate-800 mb-4">Indkomst & Skatteestimat</h2>
+                <h2 className="text-lg font-semibold text-slate-800 mb-4">Indkomst &amp; Skatteestimat</h2>
                 <IncomeForm
                   defaultValues={activeProfile?.income as Partial<IncomeData>}
                   onSubmit={handleIncomeSubmit}
@@ -280,12 +296,51 @@ export function Dashboard() {
 
         {tab === 'budget' && (
           <div className="space-y-5">
+            {/* Nødopsparing – always visible on mobile */}
+            <Card id="nodopsparing-felt">
+              <CardContent className="pt-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      (activeProfile?.aktuelOpsparing ?? 0) >= (budgetAnalysis?.anbefaletNødopsparing ?? 1)
+                        ? 'bg-emerald-100' : 'bg-amber-100'
+                    }`}>
+                      <Shield className={`w-5 h-5 ${
+                        (activeProfile?.aktuelOpsparing ?? 0) >= (budgetAnalysis?.anbefaletNødopsparing ?? 1)
+                          ? 'text-emerald-600' : 'text-amber-600'
+                      }`} />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-semibold text-slate-800">Aktuel nødopsparing</h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {budgetAnalysis
+                          ? `Dækker ${budgetAnalysis.nødopsparingDækning.toFixed(1)} mdr. (anbefalet: 3–6 mdr.)`
+                          : 'Anbefalet: 3–6 måneders udgifter'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      id="nodopsparing-input"
+                      type="number"
+                      value={activeProfile?.aktuelOpsparing ?? 0}
+                      onChange={(e) => handleNodopsparingChange(Number(e.target.value))}
+                      style={{ touchAction: 'manipulation' }}
+                      className="w-24 rounded-xl border border-slate-200 px-3 py-2 text-sm text-right"
+                      placeholder="0"
+                    />
+                    <span className="text-xs text-slate-400">kr.</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardContent className="pt-5">
                 <h2 className="text-lg font-semibold text-slate-800 mb-1">Budgetplanlægning</h2>
                 {!taxResult && (
                   <p className="text-sm text-amber-600 mb-4">
-                    Indtæst indkomst først for at se rådighedsbeløb i realtid.
+                    Indtast indkomst først for at se rådighedsbeløb i realtid.
                   </p>
                 )}
                 <BudgetForm
@@ -327,6 +382,7 @@ export function Dashboard() {
         )}
       </main>
 
+      {/* Footer */}
       <footer className="hidden md:block mt-16 border-t border-slate-200 bg-white py-8">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <p className="text-xs text-slate-400 leading-relaxed max-w-2xl mx-auto">
@@ -336,12 +392,14 @@ export function Dashboard() {
         </div>
       </footer>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30">
-        <div className="flex">
+      {/* Mobile bottom navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50">
+        <div className="flex" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
+              style={{ touchAction: 'manipulation' }}
               className={`flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors ${
                 tab === t.id
                   ? t.id === 'ai' ? 'text-indigo-600' : 'text-blue-600'
