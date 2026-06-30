@@ -121,7 +121,6 @@ export function deleteProfile(id: string): void {
 export function getOrCreateActiveProfile(): Profile {
   let profiles = loadProfiles();
 
-  // Migrate legacy single-profile data
   if (profiles.length === 0 && typeof window !== 'undefined') {
     try {
       const legacy = localStorage.getItem(LEGACY_KEY);

@@ -9,7 +9,7 @@ interface Quote {
   currency: string;
 }
 
-async function fetchYahoo(symbol: string): Promise<Omit<Quote, 'symbol' | 'name' | 'currency'>> {
+async function fetchYahoo(symbol: string, currency = 'USD'): Promise<Omit<Quote, 'symbol' | 'name' | 'currency'>> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
     const res = await fetch(url, {
@@ -35,10 +35,10 @@ async function fetchYahoo(symbol: string): Promise<Omit<Quote, 'symbol' | 'name'
 
 export async function GET() {
   const [sp500, c25, msciWorld, oblig] = await Promise.all([
-    fetchYahoo('^GSPC'),
-    fetchYahoo('^OMXC25'),
-    fetchYahoo('IWDA.AS'),
-    fetchYahoo('^TNX'),
+    fetchYahoo('^GSPC', 'USD'),
+    fetchYahoo('^OMXC25', 'DKK'),
+    fetchYahoo('IWDA.AS', 'EUR'),
+    fetchYahoo('^TNX', 'USD'),
   ]);
 
   const quotes: Quote[] = [
