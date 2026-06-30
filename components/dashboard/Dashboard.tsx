@@ -25,7 +25,7 @@ import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { ProfileSwitcher } from '@/components/ui/ProfileSwitcher';
 import { Card, CardContent } from '@/components/ui/card';
 import { exportTaxToCSV, exportBudgetToCSV, exportFullReportToPDF } from '@/lib/export';
-import { LayoutDashboard, DollarSign, Wallet, TrendingUp, Download, Sparkles } from 'lucide-react';
+import { LayoutDashboard, DollarSign, Wallet, TrendingUp, Download, Sparkles, Shield } from 'lucide-react';
 
 type Tab = 'oversigt' | 'indkomst' | 'budget' | 'investering' | 'ai';
 
@@ -163,6 +163,22 @@ export function Dashboard() {
     exportFullReportToPDF(taxResult, budgetAnalysis!, sim);
   }
 
+  function goToNodopsparing() {
+    setTab('budget');
+    setTimeout(() => {
+      document.getElementById('nodopsparing-felt')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      (document.getElementById('nodopsparing-input') as HTMLInputElement | null)?.focus();
+    }, 80);
+  }
+
+  function handleNodopsparingChange(v: number) {
+    updateProfile(activeId, { aktuelOpsparing: v });
+    setProfiles(loadProfiles());
+    if (taxResult && activeProfile) {
+      setBudgetAnalysis(analyzeBudget(taxResult.nettoIndkomst, activeProfile.budget, v));
+    }
+  }
+
   if (!ready) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -172,6 +188,8 @@ export function Dashboard() {
   }
 
   const investmentProfile = activeProfile?.investment as InvestmentProfile | undefined;
+  const nodopsparing = activeProfile?.aktuelOpsparing ?? 0;
+  const nodCoverage = budgetAnalysis?.nødopsparingDækning ?? 0;
 
   return (
     <div className="min-h-screen bg-slate-50" style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' }}>
@@ -197,19 +215,13 @@ export function Dashboard() {
               onRename={handleRenameProfile}
             />
 
+            {/* Nødopsparing – desktop only; mobil vises i Budget-fanen */}
             <div className="hidden sm:flex items-center gap-1">
               <label className="text-xs text-slate-500">Nødopsp.:</label>
               <input
                 type="number"
-                value={activeProfile?.aktuelOpsparing ?? 0}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  updateProfile(activeId, { aktuelOpsparing: v });
-                  setProfiles(loadProfiles());
-                  if (taxResult && activeProfile) {
-                    setBudgetAnalysis(analyzeBudget(taxResult.nettoIndkomst, activeProfile.budget, v));
-                  }
-                }}
+                value={nodopsparing}
+                onChange={(e) => handleNodopsparingChange(Number(e.target.value))}
                 className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs"
                 placeholder="0"
               />
@@ -283,6 +295,45 @@ export function Dashboard() {
 
         {tab === 'budget' && (
           <div className="space-y-5">
+            {/* Nødopsparing – vises øverst i budget-fanen på alle skærmstørrelser */}
+            <Card id="nodopsparing-felt">
+              <CardContent className="pt-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      nodCoverage >= 3 ? 'bg-emerald-100' : nodCoverage >= 1 ? 'bg-amber-100' : 'bg-red-100'
+                    }`}>
+                      <Shield className={`w-5 h-5 ${
+                        nodCoverage >= 3 ? 'text-emerald-600' : nodCoverage >= 1 ? 'text-amber-600' : 'text-red-600'
+                      }`} />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-semibold text-slate-800">Aktuel nødopsparing</h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {budgetAnalysis
+                          ? nodCoverage >= 3
+                            ? `✅ Dækker ${nodCoverage.toFixed(1)} måneder – godt!`
+                            : `⚠️ Dækker kun ${nodCoverage.toFixed(1)} måneder (anbefalet 3–6)`
+                          : 'Anbefalet: 3–6 måneders udgifter'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <input
+                      id="nodopsparing-input"
+                      type="number"
+                      value={nodopsparing}
+                      onChange={(e) => handleNodopsparingChange(Number(e.target.value))}
+                      className="w-28 rounded-xl border border-slate-200 px-3 py-2 text-sm text-right font-semibold focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                      placeholder="0"
+                      style={{ touchAction: 'manipulation' }}
+                    />
+                    <span className="text-sm text-slate-500">kr.</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardContent className="pt-5">
                 <h2 className="text-lg font-semibold text-slate-800 mb-1">Budgetplanlægning</h2>
@@ -301,7 +352,7 @@ export function Dashboard() {
             {budgetAnalysis && (
               <BudgetSection
                 analysis={budgetAnalysis}
-                onGoToBudgetForm={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                onGoToBudgetForm={goToNodopsparing}
               />
             )}
           </div>
@@ -339,7 +390,7 @@ export function Dashboard() {
         </div>
       </footer>
 
-      {/* Mobil bundnavigation – højere z-index og safe-area padding til iOS */}
+      {/* Mobil bundnavigation */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
